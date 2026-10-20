@@ -9,6 +9,7 @@ import { PaymentException } from './exception/payment.exception';
 import { EmailService } from '../email/email.service';
 import { PaymentState } from './paymentState';
 import { User } from '../user/domain/user.entity';
+import { EnrollmentFacade } from '../training/enrollment/enrollment.facade';
 
 @Injectable()
 export class PaymentFacade {
@@ -18,7 +19,8 @@ export class PaymentFacade {
     constructor(
         private readonly httpService: HttpService,
         private readonly userRepository: UserRepository,
-        private readonly emailService: EmailService
+        private readonly emailService: EmailService,
+        private readonly enrollmentFacade: EnrollmentFacade
     ) {
         this.stripe = new Stripe(env.STRIPE_SECRET_KEY, {
             apiVersion: '2025-08-27.basil',
@@ -27,9 +29,13 @@ export class PaymentFacade {
     }
 
     async getStripeSession(userId: number, callbackUrl: string, lang: string, enrollmentToken?: string): Promise<any> {
-        // TODO If enrollmentToken is provided, get the school and set trialDays
-        // The list of schoolId allowed with trial period will be defined in the config file. 
-        const trialDays = 0;
+        // If enrollmentToken is provided, get the school and set trialDays
+        let trialDays = 0;
+        if (enrollmentToken) {
+            trialDays = (await this.enrollmentFacade.isTrialEnabled(enrollmentToken))
+                   ? Number(env.STRIPE_TRIAL_DAYS ?? 60)
+                   : 0;
+        }
 
         const user = await this.userRepository.getUserById(userId);
 
@@ -51,6 +57,7 @@ export class PaymentFacade {
             email: user.email,
             limit: 1
         });
+        const existingCustomer = existingCustomers.data[0];
 
         const sessionParam: Stripe.Checkout.SessionCreateParams = {
             locale: stripeLocale as Stripe.Checkout.SessionCreateParams.Locale,
@@ -71,10 +78,11 @@ export class PaymentFacade {
             success_url: `${callbackUrl}/success`,
             cancel_url: `${callbackUrl}/cancel`,
             client_reference_id: userId.toString(),
-            allow_promotion_codes: true,
+            // A discount code would be consumed by the trial fee invoice instead of the yearly price
+            allow_promotion_codes: trialDays === 0,
             // Conditionally set either customer or customer_email
-            ...(existingCustomers.data.length > 0
-                ? { customer: existingCustomers.data[0].id }
+            ...(existingCustomer
+                ? { customer: existingCustomer.id }
                 : { customer_email: user.email }
             )
         };

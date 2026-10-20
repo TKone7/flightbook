@@ -169,6 +169,11 @@ export class EnrollmentFacade {
         return enrollment.isFree;
     }
     
+    async isTrialEnabled(token: string): Promise<boolean> {
+        const enrollment = await this.enrollmentRepository.getEnrollmentByToken(token);
+        return enrollment?.school?.configuration?.schoolModule?.trialEnabled === true;
+    }
+
     async getEnrollmentByToken(token: string): Promise<EnrollmentDto> {
         const enrollment = await this.enrollmentRepository.getEnrollmentByToken(token);
         if (!enrollment) {

@@ -4,11 +4,12 @@ import { PaymentFacade } from './payment-facade';
 import { HttpModule } from '@nestjs/axios';
 import { UserModule } from '../user/user.module';
 import { EmailService } from '../email/email.service';
+import { EnrollmentFacade } from 'src/training/enrollment/enrollment.facade';
 
 @Module({
   imports: [HttpModule, UserModule],
   controllers: [PaymentController],
-  providers: [PaymentFacade, EmailService],
+  providers: [PaymentFacade, EnrollmentFacade, EmailService],
   exports: [PaymentFacade]
 })
 export class PaymentModule {}
