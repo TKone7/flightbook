@@ -1,5 +1,6 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { firstValueFrom } from 'rxjs';
 import { PaymentStatusDto } from './interface/payment-status-dto';
 import Stripe from 'stripe';
@@ -9,6 +10,7 @@ import { PaymentException } from './exception/payment.exception';
 import { EmailService } from '../email/email.service';
 import { PaymentState } from './paymentState';
 import { User } from '../user/domain/user.entity';
+import { USER_EMAIL_CHANGED, UserEmailChangedEvent } from '../user/event/user-email-changed.event';
 import { EnrollmentFacade } from '../training/enrollment/enrollment.facade';
 
 @Injectable()
@@ -184,6 +186,11 @@ export class PaymentFacade {
 
     }
 
+    @OnEvent(USER_EMAIL_CHANGED)
+    async handleUserEmailChanged(event: UserEmailChangedEvent) {
+        await this.updatePaymentUser(event.user, event.oldEmail);
+    }
+
     async updatePaymentUser(user: User, oldEmail: string) {
         try {
             // TODO Check store (Stripe, IOs, Android) -> not yet necessary
@@ -191,12 +198,12 @@ export class PaymentFacade {
                 email: oldEmail,
             });
 
-            customers.data.forEach((customer: Stripe.Customer) => {
+            await Promise.all(customers.data.map((customer: Stripe.Customer) =>
                 this.stripe.customers.update(
                     customer.id,
                     { email: user.email }
-                );
-            });
+                )
+            ));
         } catch (e: any) {
             Logger.error(`Error update payment email for user id ${user.id} with old email ${oldEmail} and new email ${user.email}`);
             this.emailService.sendErrorMessageToAdmin('Error update payment email', `Error update payment email for user id ${user.id} with old email ${oldEmail} and new email ${user.email}`);

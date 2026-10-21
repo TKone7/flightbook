@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { EmailService } from '../email/email.service';
 import { User } from '../user/domain/user.entity';
 import { PaymentState } from './paymentState';
+import { UserEmailChangedEvent } from '../user/event/user-email-changed.event';
 import { EnrollmentFacade } from '../training/enrollment/enrollment.facade';
 
 process.env.STRIPE_SECRET_KEY = 'STRIPE_SECRET_KEY';
@@ -44,6 +45,19 @@ describe('Payment Facade', () => {
 
   it('should be defined', () => {
     expect(facade).toBeDefined();
+  });
+
+  describe('handleUserEmailChanged', () => {
+    it('moves Stripe customers from the old email to the new one', async () => {
+        (facade.stripe.customers.list as jest.Mock).mockResolvedValue({ data: [{ id: 'cus_1' }, { id: 'cus_2' }] });
+        (facade.stripe.customers as any).update = jest.fn().mockResolvedValue({});
+
+        await facade.handleUserEmailChanged(new UserEmailChangedEvent(buildUser({ email: 'new@example.com' }), 'old@example.com'));
+
+        expect(facade.stripe.customers.list).toHaveBeenCalledWith({ email: 'old@example.com' });
+        expect(facade.stripe.customers.update).toHaveBeenCalledWith('cus_1', { email: 'new@example.com' });
+        expect(facade.stripe.customers.update).toHaveBeenCalledWith('cus_2', { email: 'new@example.com' });
+    });
   });
 
   describe('getStripeSession', () => {
