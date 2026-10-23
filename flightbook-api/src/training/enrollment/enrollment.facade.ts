@@ -171,7 +171,9 @@ export class EnrollmentFacade {
     
     async isTrialEnabled(token: string): Promise<boolean> {
         const enrollment = await this.enrollmentRepository.getEnrollmentByToken(token);
-        return enrollment?.school?.configuration?.schoolModule?.trialEnabled === true;
+        // The trial is a school-module feature; tandem pilot enrollments never get one
+        return enrollment?.type === EnrollmentType.STUDENT
+            && enrollment.school?.configuration?.schoolModule?.trialEnabled === true;
     }
 
     async getEnrollmentByToken(token: string): Promise<EnrollmentDto> {
