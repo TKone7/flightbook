@@ -29,6 +29,7 @@ export class SchoolModule {
   validateFlights?: boolean;
   userCanEditControlSheet?: boolean;
   commentsOnSubscription?: boolean;
+  trialEnabled?: boolean;
 }
 
 export class SchoolConfig {
