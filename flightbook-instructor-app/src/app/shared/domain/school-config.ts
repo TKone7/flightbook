@@ -1,8 +1,5 @@
 export class GoogleCalendarConfig {
-  accessToken?: string;
-  refreshToken?: string;
   calendarId?: string;
-  tokenExpiry?: Date;
 }
 
 export interface CustomFieldDefinition {
