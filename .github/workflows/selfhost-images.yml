@@ -60,7 +60,7 @@ jobs:
           exit 1
       - name: Check OIDC, migrations, sessions and signed URLs
         run: devenv shell -- flightbook-test-oidc
-      - name: Check browser authentication and signed uploads
+      - name: Check browser authentication, signed uploads and coordinate entry
         run: devenv shell -- flightbook-test-web
       - name: Stop PostgreSQL
         if: always()

@@ -4,3 +4,5 @@ import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@ang
 
 getTestBed().initTestEnvironment(BrowserDynamicTestingModule, platformBrowserDynamicTesting());
 import './app/shared/interceptor/auth.interceptor.oidc.spec';
+
+import './app/form/place-form/place-form.coordinates.spec';

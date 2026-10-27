@@ -90,6 +90,9 @@
         }
     },
     "place": {
+        "coordinatesLabel": "Latitude, longitude",
+        "coordinatesHint": "Collez latitude, longitude en degrés décimaux ou degrés/minutes/secondes. Sans hémisphère ni signe moins, les valeurs indiquent le nord et l’est.",
+        "coordinatesInvalid": "Saisissez latitude, longitude valides. Latitude : −90 à 90 ; longitude : −180 à 180 ; minutes et secondes : moins de 60.",
         "place": "Lieu",
         "name": "Nom",
         "altitude": "Altitude",

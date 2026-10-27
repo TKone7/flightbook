@@ -114,6 +114,19 @@ The new S3 flags override upstream's hardcoded region/local-only path addressing
 The ACL flag omits legacy S3 ACL headers; Garage permissions remain restricted to
 the dedicated key and private bucket. The SDK checksum setting prevents signing an empty-body checksum before the browser supplies the file. Signed URLs remain valid for ten minutes.
 
+## Manual location coordinates
+
+The location form accepts a single latitude, longitude pair:
+
+- Decimal degrees: `47.146911, 9.253738`
+- Degrees and decimal minutes: `47° 8.81466′ N, 9° 15.22428′ E`
+- Degrees/minutes/seconds: `47° 8′ 48.8796″ N, 9° 15′ 13.4568″ E`
+
+Unsigned values default to north/east; use negative signs or S/W for south/west.
+Valid entries move the map pin. Choosing a pin updates the field. Invalid entries
+cannot be saved. Clearing the field removes the coordinates. Manual coordinate
+entry preserves elevation and country values.
+
 ## Build and verify
 
 ```bash

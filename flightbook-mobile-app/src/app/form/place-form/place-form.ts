@@ -1,8 +1,10 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, ViewChild } from '@angular/core';
 import { AlertController, IonInput, IonSelect, IonSelectOption, IonTextarea } from '@ionic/angular/standalone';
 import { TranslateService, TranslateModule } from '@ngx-translate/core';
 import { Place } from 'src/app/place/shared/place.model';
 import { Countries, Country } from 'src/app/place/shared/place.countries';
+import { fromLonLat, toLonLat } from 'ol/proj';
+import { parseCoordinatePair } from './coordinate-parser';
 import { FormsModule } from '@angular/forms';
 import { PlaceMapComponent } from '../../shared/components/place-map/place-map.component';
 
@@ -12,7 +14,38 @@ import { PlaceMapComponent } from '../../shared/components/place-map/place-map.c
     styleUrls: ['place-form.scss'],
     imports: [FormsModule, PlaceMapComponent, TranslateModule, IonInput, IonSelect, IonSelectOption, IonTextarea]
 })
-export class PlaceFormComponent {
+export class PlaceFormComponent implements OnChanges {
+
+    @ViewChild(PlaceMapComponent) private placeMap?: PlaceMapComponent;
+    coordinateInput = '';
+
+    ngOnChanges() {
+        this.syncCoordinateInputs();
+    }
+
+    syncCoordinateInputs() {
+        const coordinates = this.place?.coordinates;
+        if (!coordinates) {
+            this.coordinateInput = '';
+            return;
+        }
+        const [longitude, latitude] = toLonLat(coordinates);
+        this.coordinateInput = `${Number(latitude.toFixed(6))}, ${Number(longitude.toFixed(6))}`;
+    }
+
+    get coordinatesValid(): boolean {
+        return !(this.coordinateInput || '').trim() || parseCoordinatePair(this.coordinateInput) !== null;
+    }
+
+    onCoordinateInput() {
+        this.coordinateInput = this.coordinateInput ?? '';
+        // Keep incomplete/invalid edits in the field without moving the saved pin.
+        if (!this.coordinatesValid) return;
+        const lonLat = parseCoordinatePair(this.coordinateInput);
+        const position = lonLat ? fromLonLat(lonLat) : undefined;
+        this.place.coordinates = position;
+        this.placeMap?.setCoordinates(position);
+    }
 
     @Input()
     place: Place;
@@ -37,12 +70,12 @@ export class PlaceFormComponent {
     }
 
     async saveElement(loginForm: any) {
-        if (loginForm.valid) {
+        if (loginForm.valid && this.coordinatesValid) {
             this.savePlace.emit(this.place);
         } else {
             const alert = await this.alertController.create({
                 header: this.translate.instant('message.errortitle'),
-                message: this.translate.instant('message.mendatoryFields'),
+                message: this.translate.instant(this.coordinatesValid ? 'message.mendatoryFields' : 'place.coordinatesInvalid'),
                 buttons: [this.translate.instant('buttons.done')]
             });
             await alert.present();

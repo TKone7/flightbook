@@ -5,5 +5,5 @@
     "types": ["jasmine", "node"]
   },
   "files": ["src/test-oidc.ts", "src/zone-flags.ts", "src/polyfills.ts"],
-  "include": ["src/app/shared/interceptor/auth.interceptor.oidc.spec.ts", "src/**/*.d.ts"]
+  "include": ["src/app/shared/interceptor/auth.interceptor.oidc.spec.ts", "src/app/form/place-form/place-form.coordinates.spec.ts", "src/**/*.d.ts"]
 }

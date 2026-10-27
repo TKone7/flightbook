@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, Output, NgZone, OnChanges, OnDestroy, SimpleChanges, ViewChild } from '@angular/core';
 import { AlertController } from '@ionic/angular/standalone';
 import { TranslateService } from '@ngx-translate/core';
 import { Point as GeoPoint, Position } from 'geojson';
@@ -53,6 +53,7 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     /** True while the pin is the name lookup's guess rather than a real choice. */
     private coordinatesFromSearch = false;
+    private lookupGeneration = 0;
     /**
      * What this component last wrote into altitude and country. Compared against
      * the field rather than tracked as a "we filled this once" flag: that flag
@@ -69,6 +70,21 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     @Input()
     place: Place;
+
+    @Output() coordinatesChange = new EventEmitter<Position>();
+
+    /** A typed position is an explicit choice, so pending name searches cannot replace it. */
+    setCoordinates(position?: Position) {
+        clearTimeout(this.timerId);
+        this.lookupGeneration++;
+        this.coordinatesFromSearch = false;
+        this.place.coordinates = position;
+        this.marker.setGeometry(position ? new Point(position) : undefined);
+        if (position && this.map) {
+            this.map.getView().setCenter(position);
+            this.map.getView().setZoom(15);
+        }
+    }
 
     constructor(
         private placeStore: PlaceStore,
@@ -130,8 +146,9 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     private async searchPlace(name: string) {
+        const generation = this.lookupGeneration;
         const res = await firstValueFrom(this.placeStore.searchOpenstreetmapPlace(name));
-        if (this.destroyed || !this.map || !res.features || res.features.length === 0) {
+        if (this.destroyed || generation !== this.lookupGeneration || !this.map || (this.place.coordinates && !this.coordinatesFromSearch) || !res.features || res.features.length === 0) {
             return;
         }
         const geometry = res.features[0]?.geometry as GeoPoint
@@ -142,6 +159,7 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.marker.setGeometry(new Point(position));
         this.place.coordinates = position;
         this.coordinatesFromSearch = true;
+        this.zone.run(() => this.coordinatesChange.emit(position));
 
         this.map.getView().setCenter(position);
         this.map.getView().setZoom(14);
@@ -216,6 +234,8 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
         if (this.destroyed) {
             return;
         }
+        // The user may type coordinates while map configuration is loading.
+        position = this.place.coordinates;
         const attributionControl = new Attribution({
             collapsible: true,
             collapsed: true
@@ -253,7 +273,10 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     onDblclick = (async (evt: any) => {
-        this.place.coordinates = evt.coordinate;
+        this.zone.run(() => {
+            this.place.coordinates = evt.coordinate;
+            this.coordinatesChange.emit(evt.coordinate);
+        });
         // Only skip the confirm when the altitude on the place really is our
         // own guess. coordinatesFromSearch was too loose: the pin can come from
         // the name lookup while the metadata request that follows it failed,

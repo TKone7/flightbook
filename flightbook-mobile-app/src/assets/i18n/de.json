@@ -90,6 +90,9 @@
         }
     },
     "place": {
+        "coordinatesLabel": "Breitengrad, Längengrad",
+        "coordinatesHint": "Breitengrad, Längengrad als Dezimalgrad oder Grad/Minuten/Sekunden einfügen. Ohne Himmelsrichtung oder Minuszeichen gelten Nord und Ost.",
+        "coordinatesInvalid": "Gültigen Breitengrad, Längengrad eingeben. Breitengrad: −90 bis 90; Längengrad: −180 bis 180; Minuten und Sekunden: kleiner als 60.",
         "place": "Ort",
         "name": "Name",
         "altitude": "Höhe",

@@ -90,6 +90,9 @@
         }
     },
     "place": {
+        "coordinatesLabel": "Latitude, longitude",
+        "coordinatesHint": "Paste latitude, longitude in decimal degrees or degrees/minutes/seconds. Without a hemisphere or minus sign, values mean north and east.",
+        "coordinatesInvalid": "Enter a valid latitude, longitude pair. Latitude: −90 to 90; longitude: −180 to 180; minutes and seconds: less than 60.",
         "place": "Place",
         "name": "Name",
         "altitude": "Altitude",
