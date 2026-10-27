@@ -1,3 +1,4 @@
+import { oidcOnly } from '../auth/oidc/oidc.service';
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { UserWriteDto } from './interface/user-write-dto';
@@ -35,6 +36,7 @@ export class UserFacade {
     }
 
     async createUser(userWriteDto: UserWriteDto, isInstructorApp: boolean, language: string): Promise<any> {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         if (!userWriteDto.email || !userWriteDto.firstname || !userWriteDto.lastname || !userWriteDto.password) {
             throw new InvalidUserException();
         }
@@ -69,6 +71,7 @@ export class UserFacade {
     }
 
     async verifyEmail(token: string): Promise<void> {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         const user = await this.userRepository.getUserByConfirmationToken(token);
         
         if (!user) {
@@ -77,7 +80,7 @@ export class UserFacade {
 
         user.confirmationToken = null;
         user.validatedAt = new Date();
-        if (user.keycloakId) {
+        if (user.keycloakId && !oidcOnly()) {
             this.keycloakService.updateUser(user.keycloakId, user);
         }
         await this.userRepository.saveUser(user);
@@ -90,6 +93,9 @@ export class UserFacade {
 
         const user: User = await this.userRepository.getUserById(id);
         const oldEmail = user.email;
+        if (oidcOnly() && oldEmail !== userWriteDto.email.toLowerCase()) {
+            throw new BadRequestException('Email is managed by the OIDC provider');
+        }
 
         if (user.email !== userWriteDto.email) {
             const userExist: User = await this.userRepository.getUserByEmail(userWriteDto.email);
@@ -109,7 +115,7 @@ export class UserFacade {
             user.config = null;
         }
 
-        if (user.keycloakId) {
+        if (user.keycloakId && !oidcOnly()) {
             await this.keycloakService.updateUser(user.keycloakId, user);
         }
 
@@ -122,13 +128,14 @@ export class UserFacade {
     }
 
     async updatePassword(id: number, userPasswordWriteDto: UserPasswordWriteDto): Promise<any> {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         if (!userPasswordWriteDto.oldPassword || !userPasswordWriteDto.newPassword) {
             throw new InvalidPasswordException();
         }
 
         const user: User = await this.userRepository.getUserById(id);
 
-        if (user.keycloakId) {
+        if (user.keycloakId && !oidcOnly()) {
             // Validate current password
             const isValidPassword = await this.keycloakService.validateUserPassword(user, userPasswordWriteDto.oldPassword);
             if (!isValidPassword) {

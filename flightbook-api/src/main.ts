@@ -1,3 +1,4 @@
+import { configureHttpAuthentication } from './auth/oidc/http-authentication';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { VERSION_NEUTRAL, ValidationPipe, VersioningType, LogLevel } from '@nestjs/common';
@@ -14,7 +15,7 @@ async function bootstrap() {
     logger: logLevels,
     rawBody: true
   });
-  app.enableCors();
+  configureHttpAuthentication(app);
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe());
   app.enableVersioning({

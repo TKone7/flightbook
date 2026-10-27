@@ -1,3 +1,4 @@
+import { oidcOnly } from './oidc/oidc.service';
 import { Injectable, HttpException, UnauthorizedException } from '@nestjs/common';
 import { User } from '../user/domain/user.entity';
 import { UserRepository } from '../user/user.repository';
@@ -17,6 +18,7 @@ export class AuthFacade {
     ) { }
 
     async login(loginDto: LoginDto, language: string) {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         let user = await this.userRepository.getUserByEmail(loginDto.email);
         if (user?.confirmationToken) {
             throw new UnauthorizedException('account not validated');
@@ -58,6 +60,7 @@ export class AuthFacade {
     }
 
     async refresh(refreshToken: string, language: string) {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         // Check if refresh token is legacy token
         if (refreshToken?.length <= 36) {
             const user: User = await this.userRepository.getUserByToken(refreshToken);
@@ -70,6 +73,7 @@ export class AuthFacade {
     }
 
     async logout(token: any, refreshToken: string) {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         if (refreshToken && refreshToken.length > 36) {
             await this.keycloakService.logout(refreshToken);
         }
@@ -81,6 +85,7 @@ export class AuthFacade {
     }
 
     async resetPassword(email: string): Promise<void> {
+        if (oidcOnly()) throw new UnauthorizedException('Account authentication is managed by the OIDC provider');
         if (!new RegExp('^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$').test(email)) {
             return;
         }

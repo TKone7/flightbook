@@ -1,4 +1,5 @@
-import { ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { oidcOnly } from '../oidc/oidc.service';
+import { ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable, firstValueFrom, from, isObservable } from 'rxjs';
 
@@ -9,6 +10,10 @@ export class CompositeAuthGuard {
   private keycloakAuthGuard = new (AuthGuard('keycloak'))();
 
   canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
+    if (oidcOnly()) {
+      if (!context.switchToHttp().getRequest().user) throw new UnauthorizedException();
+      return true;
+    }
     return this.tryKeycloak(context).catch(err => {
       this.logger.debug('Keycloak authentication failed, trying JWT...');
       return this.tryJwt(context);

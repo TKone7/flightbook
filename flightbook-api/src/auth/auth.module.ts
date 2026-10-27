@@ -1,3 +1,5 @@
+import { OidcService } from './oidc/oidc.service';
+import { OidcController } from './oidc/oidc.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -38,6 +40,7 @@ import { KeycloakConfig } from './config/keycloak.config';
     }),
   ],
   providers: [
+    OidcService,
     UserRepository,
     AuthService, 
     LocalStrategy, 
@@ -49,7 +52,7 @@ import { KeycloakConfig } from './config/keycloak.config';
     KeycloakService,
     KeycloakConfig
   ],
-  controllers: [AuthController],
-  exports: [AuthService, KeycloakService, KeycloakConfig],
+  controllers: [AuthController, OidcController],
+  exports: [AuthService, KeycloakService, KeycloakConfig, OidcService],
 })
 export class AuthModule { }
