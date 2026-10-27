@@ -124,6 +124,8 @@
         }
     },
     "flight": {
+        "dateInputHint": "GG.MM.AAAA o AAAA-MM-GG",
+        "durationInputHint": "H:MM (1:30) o minuti (90). Massimo 23:59:59.",
         "number": "No",
         "glider": "Vela",
         "date": "Data",

@@ -130,6 +130,14 @@ require confirmation before replacement, as with a map selection. Saving waits
 for the lookup and confirmation; a failed lookup keeps the chosen position and
 existing metadata.
 
+## Desktop flight inputs
+
+With a mouse/trackpad, the flight form uses inline text fields instead of date
+and duration modals. Dates accept `27.10.2026` or `2026-10-27`; duration accepts
+`1:30` or `90` minutes, with optional seconds (`1:30:45`). Invalid dates and
+out-of-range durations cannot be saved. Touch devices retain the existing
+pickers. IGC imports still update the displayed date and duration.
+
 ## Build and verify
 
 ```bash

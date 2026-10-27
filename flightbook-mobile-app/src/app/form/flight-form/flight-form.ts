@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges, DoCheck } from '@angular/core';
 import { AlertController, IonInput, IonTextarea, IonModal, IonContent, IonDatetime, IonToggle, IonIcon, IonSelectOption, IonSelect } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { chevronForward } from 'ionicons/icons';
@@ -6,6 +6,7 @@ import { FlightValidationState } from 'src/app/flight/shared/flight-validation-s
 import { TandemSchoolPaymentState } from 'src/app/flight/shared/tandem-school-payment-state';
 import { TranslateService, TranslateModule } from '@ngx-translate/core';
 import moment from 'moment';
+import { parseFlightDate, parseFlightDuration } from './flight-input';
 import { NgForm, FormsModule } from '@angular/forms';
 import { Place } from 'src/app/place/shared/place.model';
 import { Flight } from 'src/app/flight/shared/flight.model';
@@ -39,7 +40,7 @@ import { School, CustomFieldDefinition } from 'src/app/school/shared/school.mode
         IonSelectOption
     ]
 })
-export class FlightFormComponent implements OnInit, OnChanges {
+export class FlightFormComponent implements OnInit, OnChanges, DoCheck {
 
     @Input()
     flight: Flight;
@@ -60,6 +61,42 @@ export class FlightFormComponent implements OnInit, OnChanges {
     // Exposed for the status banners
     public FlightValidationState = FlightValidationState;
     public TandemSchoolPaymentState = TandemSchoolPaymentState;
+
+    desktopInputs = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
+    dateInput = '';
+    durationInput = '';
+    private lastDate: string | null | undefined;
+    private lastDuration: string | null | undefined;
+
+    ngDoCheck() {
+        if (!this.flight) return;
+        // IGC import updates the existing Flight object, not its input reference.
+        // Keep those updates visible without replacing unfinished keyboard edits.
+        if (this.flight.date !== this.lastDate) {
+            this.lastDate = this.flight.date;
+            const date = this.flight.date?.slice(0, 10) || '';
+            const parts = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            this.dateInput = parts ? `${parts[3]}.${parts[2]}.${parts[1]}` : date;
+        }
+        if (this.flight.time !== this.lastDuration) {
+            this.lastDuration = this.flight.time;
+            const value = this.flight.time || '';
+            this.durationInput = value.endsWith(':00') && value.length === 8 ? value.slice(0, 5) : value;
+        }
+    }
+
+    get dateInputValid(): boolean { return parseFlightDate(this.dateInput) !== null; }
+    get durationInputValid(): boolean { return parseFlightDuration(this.durationInput) !== null; }
+
+    onDateInput() {
+        const date = parseFlightDate(this.dateInput);
+        if (date) this.lastDate = this.flight.date = date;
+    }
+
+    onDurationInput() {
+        const duration = parseFlightDuration(this.durationInput);
+        if (duration !== null) this.lastDuration = this.flight.time = duration || null;
+    }
 
     searchStart: string;
     searchLanding: string;
@@ -102,6 +139,9 @@ export class FlightFormComponent implements OnInit, OnChanges {
 
     ngOnChanges(changes: SimpleChanges) {
         if (changes['flight'] && this.flight) {
+            this.dateInput = this.durationInput = '';
+            this.lastDate = this.lastDuration = undefined;
+            this.ngDoCheck();
             this.initializeCustomValues();
             this.getActiveCustomFields();
         }
@@ -113,7 +153,7 @@ export class FlightFormComponent implements OnInit, OnChanges {
         
         const customFieldsValid = this.validateCustomFields();
         
-        if (valid && customFieldsValid) {
+        if (valid && customFieldsValid && (!this.desktopInputs || (this.dateInputValid && this.durationInputValid))) {
             this.formatDate();
             this.saveFlight.emit(this.flight);
         } else {

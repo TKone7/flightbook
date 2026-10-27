@@ -27,3 +27,12 @@ ion-modal.timeModal {
 
 // Ionic controls inside .fb-row, and the stacked textarea row, are styled
 // globally in theme/tokens.scss - all three redesigned forms share them.
+
+.input-hint {
+    padding: 0 16px 10px;
+    text-align: left;
+}
+
+.input-hint.is-invalid {
+    color: var(--ion-color-danger);
+}

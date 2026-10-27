@@ -6,3 +6,5 @@ getTestBed().initTestEnvironment(BrowserDynamicTestingModule, platformBrowserDyn
 import './app/shared/interceptor/auth.interceptor.oidc.spec';
 
 import './app/form/place-form/place-form.coordinates.spec';
+
+import './app/form/flight-form/flight-input.spec';

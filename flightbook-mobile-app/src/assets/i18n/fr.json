@@ -124,6 +124,8 @@
         }
     },
     "flight": {
+        "dateInputHint": "JJ.MM.AAAA ou AAAA-MM-JJ",
+        "durationInputHint": "H:MM (1:30) ou minutes (90). Maximum 23:59:59.",
         "number": "No",
         "glider": "Parapente",
         "date": "Date",

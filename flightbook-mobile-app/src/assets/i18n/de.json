@@ -124,6 +124,8 @@
         }
     },
     "flight": {
+        "dateInputHint": "TT.MM.JJJJ oder JJJJ-MM-TT",
+        "durationInputHint": "H:MM (1:30) oder Minuten (90). Maximal 23:59:59.",
         "number": "Nr",
         "glider": "Gleitschirm",
         "date": "Datum",

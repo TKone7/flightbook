@@ -79,12 +79,23 @@
         </div>
       }
 
-      <!-- type="button" is mandatory: a bare button inside a form submits it -->
-      <button type="button" id="flightDateInput" class="fb-row">
-        <span class="fb-row__label">{{ 'flight.date' | translate }}<span class="fb-row__req" aria-hidden="true">*</span></span>
-        <span class="fb-row__value">{{ flight.date | date:'dd.MM.yyyy' }}</span>
-        <ion-icon class="fb-row__chevron" name="chevron-forward" aria-hidden="true"></ion-icon>
-      </button>
+      @if (desktopInputs) {
+        <div class="fb-row">
+          <span class="fb-row__label" id="lbl-flight-date">{{ 'flight.date' | translate }}<span class="fb-row__req" aria-hidden="true">*</span></span>
+          <span class="fb-row__value">
+            <ion-input type="text" name="date" required [(ngModel)]="dateInput" (ngModelChange)="onDateInput()"
+                       placeholder="27.10.2026" aria-labelledby="lbl-flight-date" aria-describedby="flight-date-hint"
+                       [attr.aria-invalid]="!dateInputValid"></ion-input>
+          </span>
+        </div>
+        <div class="fb-empty-hint input-hint" [class.is-invalid]="dateInput && !dateInputValid" id="flight-date-hint">{{ 'flight.dateInputHint' | translate }}</div>
+      } @else {
+        <button type="button" id="flightDateInput" class="fb-row">
+          <span class="fb-row__label">{{ 'flight.date' | translate }}<span class="fb-row__req" aria-hidden="true">*</span></span>
+          <span class="fb-row__value">{{ flight.date | date:'dd.MM.yyyy' }}</span>
+          <ion-icon class="fb-row__chevron" name="chevron-forward" aria-hidden="true"></ion-icon>
+        </button>
+      }
 
       <div class="fb-row">
         <span class="fb-row__label" id="lbl-start">{{ 'flight.start' | translate }}</span>
@@ -104,11 +115,23 @@
       </div>
       <autocomplete [search]="searchLanding" (setInputValue)="setLandingInput($event)"></autocomplete>
 
-      <button type="button" id="flightTime" class="fb-row" (click)="setDefaultTime()">
-        <span class="fb-row__label">{{ 'flight.time' | translate }}</span>
-        <span class="fb-row__value">{{ flight.time }}</span>
-        <ion-icon class="fb-row__chevron" name="chevron-forward" aria-hidden="true"></ion-icon>
-      </button>
+      @if (desktopInputs) {
+        <div class="fb-row">
+          <span class="fb-row__label" id="lbl-flight-duration">{{ 'flight.time' | translate }}</span>
+          <span class="fb-row__value">
+            <ion-input type="text" name="duration" clearInput [(ngModel)]="durationInput" (ngModelChange)="onDurationInput()"
+                       placeholder="1:30" aria-labelledby="lbl-flight-duration" aria-describedby="flight-duration-hint"
+                       [attr.aria-invalid]="!durationInputValid"></ion-input>
+          </span>
+        </div>
+        <div class="fb-empty-hint input-hint" [class.is-invalid]="!durationInputValid" id="flight-duration-hint">{{ 'flight.durationInputHint' | translate }}</div>
+      } @else {
+        <button type="button" id="flightTime" class="fb-row" (click)="setDefaultTime()">
+          <span class="fb-row__label">{{ 'flight.time' | translate }}</span>
+          <span class="fb-row__value">{{ flight.time }}</span>
+          <ion-icon class="fb-row__chevron" name="chevron-forward" aria-hidden="true"></ion-icon>
+        </button>
+      }
 
       @if (flight.glider?.tandem) {
         <div class="fb-row">
@@ -246,6 +269,7 @@
   </form>
 }
 
+@if (!desktopInputs) {
 <ion-modal class="dateModal" trigger='flightDateInput'>
   <ng-template>
     <ion-content>
@@ -265,3 +289,5 @@
     </ion-content>
   </ng-template>
 </ion-modal>
+
+}
