@@ -6,6 +6,7 @@ import { Injectable, Injector, inject } from '@angular/core';
 import { catchError } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import HttpStatusCode from '../util/HttpStatusCode';
+import { AccountService } from 'src/app/account/shared/account.service';
 import { SessionService } from '../services/session.service';
 
 export const IGNORE_ERROR = new HttpContextToken(() => false);
@@ -41,7 +42,7 @@ export class HttpErrorInterceptor implements HttpInterceptor {
                 // rejected sign-in is also a 401, and clearing resets the shared
                 // filters - which the filter sheet's debounced count request
                 // watches, so an unguarded clear could answer its own 401.
-                if (localStorage.getItem('access_token') || localStorage.getItem('refresh_token')) {
+                if (localStorage.getItem('access_token') || localStorage.getItem('refresh_token') || this.injector.get(AccountService).currentUser$()) {
                     this.injector.get(SessionService).clearLocalSession();
                 }
                 this.router.navigate(['login']);

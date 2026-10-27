@@ -62,7 +62,7 @@ export class AccountDataPage implements OnInit, OnDestroy {
 
     constructor(
         private translate: TranslateService,
-        private accountService: AccountService,
+        public accountService: AccountService,
         private schoolService: SchoolService,
         private sessionService: SessionService,
         private languageService: LanguageService,

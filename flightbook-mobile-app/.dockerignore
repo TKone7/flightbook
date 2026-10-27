@@ -30,3 +30,6 @@ npm-debug.log*
 /www
 /ios
 /store_screenshots
+/.angular
+/out-tsc
+/android

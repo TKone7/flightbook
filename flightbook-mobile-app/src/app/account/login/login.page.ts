@@ -40,6 +40,8 @@ export class LoginPage implements OnInit, OnDestroy {
 
     readonly languages = ['fr', 'de', 'en', 'it'];
     showPassword = false;
+    authConfigLoaded = false;
+    oidcEnabled = false;
 
     get currentLang(): string {
         return this.languageService.lang();
@@ -65,6 +67,10 @@ export class LoginPage implements OnInit, OnDestroy {
     }
 
     ngOnInit() {
+        this.accountService.authConfig().then(config => {
+            this.oidcEnabled = config.oidc;
+            this.authConfigLoaded = true;
+        });
         const token = this.route.snapshot.queryParamMap.get('token');
         if (token) {
             // Remove token from URL
@@ -157,6 +163,10 @@ export class LoginPage implements OnInit, OnDestroy {
         this.languageService.setLanguage(lang);
         // News is fetched per language, so the cached copy is now the wrong one.
         this.newsStore.clearNews();
+    }
+
+    oidcLogin() {
+        this.accountService.startOidcLogin();
     }
 
     register() {

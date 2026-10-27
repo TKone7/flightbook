@@ -1,10 +1,10 @@
 ### STAGE 1: Build ###
-FROM node:lts-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /usr/src/app
 COPY package.json ./
 COPY package-lock.json ./
 
-RUN npm install
+RUN npm ci
 
 COPY . .
 RUN npm set progress=false && npm config set depth 0 && npm cache clean --force

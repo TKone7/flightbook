@@ -8,6 +8,12 @@
         <p class="brand__tagline">{{ 'login.tagline' | translate }}</p>
       </div>
 
+      @if (authConfigLoaded && oidcEnabled) {
+        <ion-button class="login__primary" expand="block" (click)="oidcLogin()">
+          {{ 'login.oidc' | translate }}
+        </ion-button>
+      }
+      @if (authConfigLoaded && !oidcEnabled) {
       <form id="loginForm" #form="ngForm" (ngSubmit)="login(form)">
         <div class="fb-card--flush credentials">
           <div class="fb-field">
@@ -49,6 +55,7 @@
       <button type="button" class="login__forgot" (click)="forgotPassword()">
         {{ 'login.passwordlost' | translate }}
       </button>
+      }
     </div>
 
     <div class="login__footer">

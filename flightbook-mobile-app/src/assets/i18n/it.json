@@ -54,6 +54,7 @@
         "pause": "Pausa"
     },
     "login": {
+    "oidc": "Accedi con Pocket ID",
         "email": "E-Mail",
         "password": "Passwort",
         "oldpassword": "Vecchia Passwort",

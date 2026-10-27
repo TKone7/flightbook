@@ -11,6 +11,22 @@ import { NavigationService } from 'src/app/shared/services/navigation.service';
   providedIn: 'root'
 })
 export class AccountService {
+  private configuration?: Promise<{ oidc: boolean; selfHosted: boolean }>;
+  isOidcMode = false;
+
+  authConfig(): Promise<{ oidc: boolean; selfHosted: boolean }> {
+    if (!this.configuration) {
+      this.configuration = firstValueFrom(this.http.get<{ oidc: boolean; selfHosted: boolean }>(`${environment.baseUrl}/auth/config`))
+        .then(config => { this.isOidcMode = config.oidc; return config; })
+        .catch(error => { this.configuration = undefined; throw error; });
+    }
+    return this.configuration;
+  }
+
+  startOidcLogin(): void {
+    window.location.assign(`${environment.baseUrl}/auth/oidc/login`);
+  }
+
   private jwtHelper: JwtHelperService;
   public currentUser$: WritableSignal<User> = signal(null);
 
@@ -47,6 +63,7 @@ export class AccountService {
   logout(refreshToken: string): Observable<any> {
     this.naviagationService.clearHistory();
     this.currentUser$.set(null);
+    if (this.isOidcMode) return this.http.post<void>(`${environment.baseUrl}/auth/oidc/logout`, {});
     return this.http.post<any>(`${environment.baseUrl}/auth/logout`, { "refresh_token": refreshToken });
   }
 
@@ -102,6 +119,10 @@ export class AccountService {
   }
 
   async isAuth(): Promise<boolean> {
+    if ((await this.authConfig()).oidc) {
+      const session = await firstValueFrom(this.http.get<{ authenticated: boolean }>(`${environment.baseUrl}/auth/session`));
+      return session.authenticated;
+    }
     let authenticated = true;
     const accessToken = localStorage.getItem('access_token');
     if (this.jwtHelper.isTokenExpired(accessToken)) {
