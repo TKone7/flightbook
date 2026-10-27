@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { firstValueFrom } from 'rxjs';
 import { PaymentStatusDto } from './interface/payment-status-dto';
@@ -24,13 +24,14 @@ export class PaymentFacade {
         private readonly emailService: EmailService,
         private readonly enrollmentFacade: EnrollmentFacade
     ) {
-        this.stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+        if (env.SELF_HOSTED !== 'true') this.stripe = new Stripe(env.STRIPE_SECRET_KEY, {
             apiVersion: '2025-08-27.basil',
         });
         this.endpointSecret = env.STRIPE_ENDPOINT_SECRET;
     }
 
     async getStripeSession(userId: number, callbackUrl: string, lang: string, enrollmentToken?: string): Promise<any> {
+        if (env.SELF_HOSTED === 'true') throw new NotFoundException('Billing is disabled');
         // If enrollmentToken is provided, get the school and set trialDays
         let trialDays = 0;
         if (enrollmentToken) {
@@ -108,6 +109,7 @@ export class PaymentFacade {
     }
 
     async cancelSubscription(id: number) {
+        if (env.SELF_HOSTED === 'true') throw new NotFoundException('Billing is disabled');
         // TODO Check store (Stripe, IOs, Android) -> not yet necessary
 
         const user = await this.userRepository.getUserById(id);
@@ -137,6 +139,7 @@ export class PaymentFacade {
     }
 
     async hasUserPayed(id: number): Promise<PaymentStatusDto> {
+        if (env.SELF_HOSTED === 'true') return Object.assign(new PaymentStatusDto(), { active: true, state: PaymentState.EXEMPTED });
         let paymentStatusDto = new PaymentStatusDto();
         paymentStatusDto.active = false;
         paymentStatusDto.state = PaymentState.NONE;
@@ -192,6 +195,7 @@ export class PaymentFacade {
     }
 
     async updatePaymentUser(user: User, oldEmail: string) {
+        if (env.SELF_HOSTED === 'true') return;
         try {
             // TODO Check store (Stripe, IOs, Android) -> not yet necessary
             const customers = await this.stripe.customers.list({
@@ -211,6 +215,7 @@ export class PaymentFacade {
     }
 
     async stripeWebhook(request: any) {
+        if (env.SELF_HOSTED === 'true') throw new NotFoundException('Billing is disabled');
         const sig = request.headers['stripe-signature'];
 
         let event;
