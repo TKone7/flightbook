@@ -38,6 +38,7 @@ export class PlaceFormComponent implements OnChanges {
     }
 
     onCoordinateInput() {
+        this.placeMap?.cancelCoordinateLookup();
         this.coordinateInput = this.coordinateInput ?? '';
         // Keep incomplete/invalid edits in the field without moving the saved pin.
         if (!this.coordinatesValid) return;
@@ -71,7 +72,9 @@ export class PlaceFormComponent implements OnChanges {
 
     async saveElement(loginForm: any) {
         if (loginForm.valid && this.coordinatesValid) {
-            this.savePlace.emit(this.place);
+            await this.placeMap?.finishCoordinateLookup();
+            // The form may have changed while a lookup or confirmation was open.
+            if (loginForm.valid && this.coordinatesValid) this.savePlace.emit(this.place);
         } else {
             const alert = await this.alertController.create({
                 header: this.translate.instant('message.errortitle'),

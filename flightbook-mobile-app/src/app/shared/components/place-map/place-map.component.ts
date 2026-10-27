@@ -8,7 +8,7 @@ import Attribution from 'ol/control/Attribution';
 import Point from 'ol/geom/Point';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
-import { fromLonLat } from 'ol/proj';
+import { fromLonLat, toLonLat } from 'ol/proj';
 import OSM from 'ol/source/OSM';
 import VectorSource from 'ol/source/Vector';
 import { firstValueFrom } from 'rxjs';
@@ -54,6 +54,9 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     /** True while the pin is the name lookup's guess rather than a real choice. */
     private coordinatesFromSearch = false;
     private lookupGeneration = 0;
+    private metadataTimer?: ReturnType<typeof setTimeout>;
+    private pendingMetadata?: () => Promise<void>;
+    private metadataRequest?: Promise<void>;
     /**
      * What this component last wrote into altitude and country. Compared against
      * the field rather than tracked as a "we filled this once" flag: that flag
@@ -76,7 +79,7 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     /** A typed position is an explicit choice, so pending name searches cannot replace it. */
     setCoordinates(position?: Position) {
         clearTimeout(this.timerId);
-        this.lookupGeneration++;
+        this.cancelCoordinateLookup();
         this.coordinatesFromSearch = false;
         this.place.coordinates = position;
         this.marker.setGeometry(position ? new Point(position) : undefined);
@@ -84,6 +87,28 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
             this.map.getView().setCenter(position);
             this.map.getView().setZoom(15);
         }
+        if (position) {
+            const generation = this.lookupGeneration;
+            this.pendingMetadata = () => this.updatePositionMetadata(position, generation);
+            // Typing a pair can produce several valid intermediate positions.
+            this.metadataTimer = setTimeout(() => void this.finishCoordinateLookup(), 600);
+        }
+    }
+
+    cancelCoordinateLookup() {
+        clearTimeout(this.metadataTimer);
+        this.pendingMetadata = undefined;
+        this.metadataRequest = undefined;
+        this.lookupGeneration++;
+    }
+
+    /** Save flushes the debounce and waits for any lookup/overwrite confirmation. */
+    async finishCoordinateLookup(): Promise<void> {
+        clearTimeout(this.metadataTimer);
+        const pending = this.pendingMetadata;
+        this.pendingMetadata = undefined;
+        if (pending) this.metadataRequest = pending();
+        await this.metadataRequest;
     }
 
     constructor(
@@ -140,6 +165,7 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
      */
     ngOnDestroy() {
         this.destroyed = true;
+        this.cancelCoordinateLookup();
         clearTimeout(this.timerId);
         this.map?.setTarget(undefined);
         this.map?.dispose();
@@ -273,43 +299,46 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     onDblclick = (async (evt: any) => {
+        clearTimeout(this.timerId);
+        this.cancelCoordinateLookup();
+        this.coordinatesFromSearch = false;
         this.zone.run(() => {
             this.place.coordinates = evt.coordinate;
             this.coordinatesChange.emit(evt.coordinate);
         });
-        // Only skip the confirm when the altitude on the place really is our
-        // own guess. coordinatesFromSearch was too loose: the pin can come from
-        // the name lookup while the metadata request that follows it failed,
-        // leaving a typed altitude that would then be replaced unannounced.
-        const autoFilled = this.ownsAltitude();
-        // Placed deliberately, so the name lookup stops moving it.
-        this.coordinatesFromSearch = false;
         this.marker.setGeometry(new Point(evt.coordinate));
-        const epsgGeometry: any = this.marker.getGeometry().clone().transform(this.map.getView().getProjection(), 'EPSG:4326')
-        const res = await firstValueFrom(this.placeStore.getPlaceMetadata(epsgGeometry.flatCoordinates));
-
-        // != null, not truthy: a place at sea level has altitude 0, and treating
-        // that as "nothing to lose" overwrote it without asking.
-        if (this.place.altitude != null && !autoFilled) {
-            const alert = await this.alertController.create({
-                header: this.translate.instant('message.infotitle'),
-                message: this.translate.instant('place.override'),
-                buttons: [
-                    {
-                        text: this.translate.instant('buttons.yes'),
-                        handler: () => {
-                            this.writeMetadata(res);
-                        }
-                    },
-                    this.translate.instant('buttons.no')
-                ]
-            });
-
-            await alert.present();
-            await alert.onDidDismiss();
-            await alert.dismiss();
-        } else {
-            this.zone.run(() => this.writeMetadata(res));
-        }
+        await this.updatePositionMetadata(evt.coordinate, this.lookupGeneration);
     });
+
+    /** Both typed coordinates and map selections use the same replacement rules. */
+    private async updatePositionMetadata(position: Position, generation: number) {
+        const current = () => !this.destroyed && generation === this.lookupGeneration;
+        try {
+            const metadata = await firstValueFrom(this.placeStore.getPlaceMetadata(toLonLat(position)));
+            if (!current()) return;
+            // A country-only correction and an elevation of zero also belong to the user.
+            if (!this.ownsAltitude() || !this.ownsCountry()) {
+                const alert = await this.alertController.create({
+                    header: this.translate.instant('message.infotitle'),
+                    message: this.translate.instant('place.override'),
+                    buttons: [
+                        {
+                            text: this.translate.instant('buttons.yes'),
+                            handler: () => {
+                                if (current()) this.zone.run(() => this.writeMetadata(metadata));
+                            }
+                        },
+                        this.translate.instant('buttons.no')
+                    ]
+                });
+                if (!current()) return;
+                await alert.present();
+                await alert.onDidDismiss();
+            } else {
+                this.zone.run(() => this.writeMetadata(metadata));
+            }
+        } catch {
+            // A failed lookup must preserve the chosen position and manual metadata.
+        }
+    }
 }

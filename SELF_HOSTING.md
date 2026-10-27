@@ -125,7 +125,10 @@ The location form accepts a single latitude, longitude pair:
 Unsigned values default to north/east; use negative signs or S/W for south/west.
 Valid entries move the map pin. Choosing a pin updates the field. Invalid entries
 cannot be saved. Clearing the field removes the coordinates. Manual coordinate
-entry preserves elevation and country values.
+entry looks up elevation and country after a short pause. Existing manual values
+require confirmation before replacement, as with a map selection. Saving waits
+for the lookup and confirmation; a failed lookup keeps the chosen position and
+existing metadata.
 
 ## Build and verify
 
