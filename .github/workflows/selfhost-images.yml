@@ -1,0 +1,125 @@
+name: Self-hosted images
+
+on:
+  push:
+    branches: [selfhost/pocket-id]
+    paths:
+      - flightbook-api/**
+      - flightbook-mobile-app/**
+      - devenv.nix
+      - devenv.yaml
+      - devenv.lock
+      - .github/workflows/selfhost-images.yml
+  pull_request:
+    branches: [selfhost/pocket-id]
+    paths:
+      - flightbook-api/**
+      - flightbook-mobile-app/**
+      - devenv.nix
+      - devenv.yaml
+      - devenv.lock
+      - .github/workflows/selfhost-images.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selfhost-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: devenv checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        with:
+          name: devenv
+      - name: Install devenv
+        run: nix profile add github:cachix/devenv/v2.4.0
+      - name: Install locked application dependencies
+        run: devenv shell -- flightbook-install
+      - name: Build API and frontend
+        run: devenv shell -- flightbook-build
+      - name: Start isolated PostgreSQL/PostGIS
+        run: devenv up -d postgres
+      - name: Wait for PostgreSQL
+        shell: devenv shell -- bash -e {0}
+        run: |
+          for attempt in {1..30}; do
+            if pg_isready -q; then exit 0; fi
+            sleep 1
+          done
+          echo 'PostgreSQL did not become ready' >&2
+          exit 1
+      - name: Check OIDC, migrations, sessions and signed URLs
+        run: devenv shell -- flightbook-test-oidc
+      - name: Check browser authentication and signed uploads
+        run: devenv shell -- flightbook-test-web
+      - name: Stop PostgreSQL
+        if: always()
+        run: devenv down
+
+  images:
+    name: Build ${{ matrix.component }} image
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            context: ./flightbook-api
+          - component: web
+            context: ./flightbook-mobile-app
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Image names
+        id: image
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-${COMPONENT}" >> "$GITHUB_OUTPUT"
+          echo "revision=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/selfhost/pocket-id'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and optionally publish
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/selfhost/pocket-id' }}
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ steps.image.outputs.revision }}
+            ${{ steps.image.outputs.name }}:selfhost
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=selfhost-${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=selfhost-${{ matrix.component }}
+      - name: Record deployment reference
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/selfhost/pocket-id'
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          printf '### Deployment image\n\n    %s@%s\n' "$IMAGE_NAME" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
