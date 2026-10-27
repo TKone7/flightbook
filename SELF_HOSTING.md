@@ -202,8 +202,8 @@ registry authentication on the server if keeping the packages private.
 
 The inherited upstream release/mobile-store workflows are disabled through the
 fork's GitHub settings, keeping their YAML untouched for easier rebases. Review
-new inherited workflows when syncing upstream. The self-hosting workflow is the
-only workflow that should be enabled for this deployment.
+new inherited workflows when syncing upstream. The self-hosting image workflow and monthly upstream updater are enabled.
+Their shared checks workflow is reusable and does not publish images by itself.
 
 ## Keeping the fork maintainable
 
@@ -214,9 +214,39 @@ renaming/reformatting upstream files or mixing server-specific NixOS configurati
 into the application repository. The hostnames above are examples; real deployment
 values and secrets belong in the separate server configuration.
 
-A scheduled upstream-update job is intentionally deferred. When added, it should
-fetch upstream, create a candidate branch, rebase the self-hosting commits onto
-that upstream revision, run these checks, and open a reviewable pull request.
-Conflicts should stop the proposal rather than rewriting the deployed branch.
-It must not force-push the deployment branch or automatically update server image
-digests. Accepting a tested rebase will trigger the existing image workflow.
+The **Monthly upstream updates** workflow checks `vast-ch/flightbook:main` on the
+first day of each month at **05:23 UTC**. It can also be run manually from Actions.
+No additional repository secrets are needed; it uses a short-lived `GITHUB_TOKEN`.
+The repository must permit Actions to create pull requests; default workflow
+permissions stay read-only, with write permissions limited to the preparation
+and PR jobs. The workflow never submits approving reviews.
+
+When upstream has changes, the job merges them into an `automation/upstream-*`
+branch, preserving the published self-hosting history. It reuses an existing bot
+PR, preserves human resolution commits, and never force-pushes. Existing proposals
+become drafts while updated commits are checked. Merge conflicts abort without
+pushing conflicted changes; the workflow fails with conflicting paths in its
+summary so they can be resolved manually. A closed proposal for the same inputs
+is left closed.
+
+The candidate's exact commit runs the same API/frontend builds, fresh PostgreSQL
+migrations, backend integration tests and browser tests as image publishing.
+These checks run directly as a read-only reusable workflow, so they do not depend
+on bot PR events starting CI. Only after checks pass does the updater open a PR
+or mark its existing draft ready. The PR body records the validated commit and
+links to the run. The updater itself never publishes images, merges a PR or
+changes NixOS image pins. Review inherited `.github/workflows` changes too.
+
+After reviewing and merging the PR, the image workflow publishes new images.
+Update NixOS digest pins separately when ready to deploy. The fork's `main`
+branch is not rewritten by this process; the updater fetches upstream directly.
+
+For a live check without an upstream change, manually run the monthly workflow
+with **Run checks even when upstream is unchanged** enabled. It validates the
+current deployment branch without opening a PR or publishing images. The sync
+script is also tested against disposable repositories for no-change runs,
+merges/retries, preservation of human commits, conflicts and closed proposals.
+
+GitHub can disable schedules in public repositories after 60 days of inactivity.
+If this fork becomes inactive, check the workflow's status in Actions and
+re-enable it there. The cron is monthly, not an automatic server deployment.

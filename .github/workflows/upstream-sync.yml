@@ -1,0 +1,103 @@
+name: Monthly upstream updates
+
+on:
+  schedule:
+    - cron: '23 5 1 * *'
+  workflow_dispatch:
+    inputs:
+      validate_current:
+        description: Run checks even when upstream is unchanged
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare upstream merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      head: ${{ steps.prepare.outputs.head }}
+      branch: ${{ steps.prepare.outputs.branch }}
+      changed: ${{ steps.prepare.outputs.changed }}
+      upstream: ${{ steps.prepare.outputs.upstream }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: selfhost/pocket-id
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare candidate without rewriting deployment history
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VALIDATE_CURRENT: ${{ inputs.validate_current || false }}
+        run: |
+          gh auth setup-git
+          cp .github/scripts/prepare-upstream.sh "$RUNNER_TEMP/prepare-upstream.sh"
+          bash "$RUNNER_TEMP/prepare-upstream.sh"
+
+  validate:
+    name: Validate upstream candidate
+    needs: prepare
+    if: needs.prepare.outputs.head != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/selfhost-checks.yml
+    with:
+      ref: ${{ needs.prepare.outputs.head }}
+
+  propose:
+    name: Open reviewed update proposal
+    needs: [prepare, validate]
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create or update the pull request after checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ needs.prepare.outputs.branch }}
+          HEAD_SHA: ${{ needs.prepare.outputs.head }}
+          UPSTREAM_SHA: ${{ needs.prepare.outputs.upstream }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/$BRANCH" --jq .object.sha)
+          if [[ "$current" != "$HEAD_SHA" ]]; then
+            echo 'Candidate changed during validation; rerun the workflow.' >&2
+            exit 1
+          fi
+          body="$RUNNER_TEMP/upstream-pr.md"
+          cat > "$body" <<EOF_BODY
+          Merge updates from vast-ch/flightbook main while preserving the self-hosting changes.
+
+          Upstream revision: $UPSTREAM_SHA
+          Validated candidate: $HEAD_SHA
+          Build and regression checks passed: $RUN_URL
+
+          Review this PR before merging. This job does not approve or merge PRs, publish images, or update the server. Merging triggers the existing image build; deployment still requires updating pinned NixOS image digests.
+
+          Inspect inherited workflow changes as part of review; upstream release/mobile-store workflows must remain disabled.
+          EOF_BODY
+          pr=$(gh pr list --base selfhost/pocket-id --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$pr" ]]; then
+            gh pr edit "$pr" --title 'Merge upstream Flightbook updates' --body-file "$body"
+            draft=$(gh pr view "$pr" --json isDraft --jq .isDraft)
+            if [[ "$draft" == true ]]; then gh pr ready "$pr"; fi
+          else
+            gh pr create --base selfhost/pocket-id --head "$BRANCH" --title 'Merge upstream Flightbook updates' --body-file "$body"
+          fi
