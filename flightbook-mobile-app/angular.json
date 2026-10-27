@@ -55,6 +55,13 @@
                         "browser": "src/main.ts"
                     },
                     "configurations": {
+                        "preview": {
+                            "browser": "src/main.preview.ts",
+                            "tsConfig": "tsconfig.preview.json",
+                            "optimization": false,
+                            "sourceMap": true,
+                            "namedChunks": true
+                        },
                         "development": {
                             "optimization": false,
                             "sourceMap": true,
@@ -129,6 +136,9 @@
                     "configurations": {
                         "production": {
                             "buildTarget": "app:build:production"
+                        },
+                        "preview": {
+                            "buildTarget": "app:build:preview"
                         },
                         "development": {
                             "buildTarget": "app:build:development"

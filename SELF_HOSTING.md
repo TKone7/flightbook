@@ -138,6 +138,15 @@ and duration modals. Dates accept `27.10.2026` or `2026-10-27`; duration accepts
 out-of-range durations cannot be saved. Touch devices retain the existing
 pickers. IGC imports still update the displayed date and duration.
 
+## Local form preview
+
+Run `devenv shell -- flightbook-preview`, then open http://localhost:4200.
+This uses the actual flight and location forms with isolated sample data.
+No sign-in or backend is needed and saves only display the resulting values.
+Metadata lookup is simulated with 900 m / CH so overwrite confirmation can be
+reviewed. Map tiles still come from OpenStreetMap. This separate entry point is
+excluded from production builds.
+
 ## Build and verify
 
 ```bash

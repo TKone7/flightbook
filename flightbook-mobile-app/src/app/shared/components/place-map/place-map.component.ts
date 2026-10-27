@@ -49,7 +49,7 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     private marker = new Feature();
 
-    private timerId: NodeJS.Timeout;
+    private timerId: ReturnType<typeof setTimeout>;
 
     /** True while the pin is the name lookup's guess rather than a real choice. */
     private coordinatesFromSearch = false;
@@ -91,7 +91,7 @@ export class PlaceMapComponent implements AfterViewInit, OnChanges, OnDestroy {
             const generation = this.lookupGeneration;
             this.pendingMetadata = () => this.updatePositionMetadata(position, generation);
             // Typing a pair can produce several valid intermediate positions.
-            this.metadataTimer = setTimeout(() => void this.finishCoordinateLookup(), 600);
+            this.metadataTimer = setTimeout((): void => { void this.finishCoordinateLookup(); }, 600);
         }
     }
 

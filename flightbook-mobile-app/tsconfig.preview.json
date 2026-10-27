@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.app.json",
+  "files": [
+    "src/main.preview.ts",
+    "src/polyfills.ts"
+  ],
+  "include": [
+    "src/**/*.d.ts"
+  ]
+}

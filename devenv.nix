@@ -28,6 +28,11 @@
     port = 55440;
   };
 
+  scripts.flightbook-preview.exec = ''
+    set -euo pipefail
+    cd "${config.devenv.root}/flightbook-mobile-app"
+    exec npm exec ng serve -- --configuration preview --host 127.0.0.1 --port 4200
+  '';
   scripts.flightbook-install.exec = ''
     set -euo pipefail
     cd "${config.devenv.root}/flightbook-api"
