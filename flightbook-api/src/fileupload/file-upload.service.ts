@@ -23,7 +23,8 @@ export class FileUploadService {
   constructor() {
     this.s3 = new S3Client({
       apiVersion: "latest",
-      region: "ams3",
+      region: process.env.AWS_REGION || "ams3",
+      forcePathStyle: process.env.AWS_S3_FORCE_PATH_STYLE === "true" || this.env === "local",
       endpoint: process.env.AWS_S3_ENDPOINT,
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -43,7 +44,7 @@ export class FileUploadService {
         Bucket: this.bucket,
         Key: `${this.env}/${userId}/${file.originalname}`,
         Body: file.buffer,
-        ACL: 'private'
+        ...(process.env.AWS_S3_DISABLE_ACL === 'true' ? {} : { ACL: 'private' as const })
       };
 
       const command = new PutObjectCommand(params);
@@ -61,7 +62,7 @@ export class FileUploadService {
         Bucket: this.bucket,
         Key: `${this.env}/${userId}/${filename}`,
         ContentType: 'igc',
-        ACL: 'private'
+        ...(process.env.AWS_S3_DISABLE_ACL === 'true' ? {} : { ACL: 'private' as const })
       };
 
       const command = new PutObjectCommand(params);
@@ -82,7 +83,7 @@ export class FileUploadService {
         Bucket: this.bucket,
         CopySource: `${this.env}/${userId}/${copyFile.sourceFileName}`,
         Key: `${this.env}/${userId}/${copyFile.destinationFileName}`,
-        ACL: 'private'
+        ...(process.env.AWS_S3_DISABLE_ACL === 'true' ? {} : { ACL: 'private' as const })
       };
 
       const command = new CopyObjectCommand(params);
@@ -139,7 +140,7 @@ export class FileUploadService {
       const params: PutObjectCommandInput = {
         Bucket: this.bucket,
         Key: key,
-        ACL: 'private',
+        ...(process.env.AWS_S3_DISABLE_ACL === 'true' ? {} : { ACL: 'private' as const }),
         Body: file.buffer
       };
 
