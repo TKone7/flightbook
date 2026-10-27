@@ -10,7 +10,14 @@
   };
   languages.python.enable = true; # Native Node dependency build tooling.
   packages = [pkgs.gnumake pkgs.gcc pkgs.git pkgs.jq pkgs.chromium pkgs.actionlint];
-  env.CHROME_BIN = "${pkgs.chromium}/bin/chromium";
+  env.CHROME_BIN = "${pkgs.writeShellScript "flightbook-chromium" ''
+    # GitHub's ephemeral Ubuntu runners cannot use Nix's SUID sandbox helper.
+    # Keep Chromium sandboxing enabled on developer machines.
+    if [ "''${GITHUB_ACTIONS:-}" = "true" ]; then
+      exec ${pkgs.chromium}/bin/chromium --no-sandbox "$@"
+    fi
+    exec ${pkgs.chromium}/bin/chromium "$@"
+  ''}";
 
   services.postgres = {
     enable = true;
